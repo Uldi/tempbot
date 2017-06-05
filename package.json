@@ -22,7 +22,8 @@
         "botbuilder": "^3.8.1",
         "restify": "^4.3.0",
         "dotenv": "^4.0.0",
-        "fs": "0.0.1-security"
+        "fs": "0.0.1-security",
+        "netatmo": "^2.1.0"
     },
     "devDependencies": {}
 }

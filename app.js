@@ -133,17 +133,23 @@ intents.onDefault(
 bot.dialog('/Intro', [
   function (session, args, next) {
             session.preferredLocale("de");
+
+            //create buttons
+            var stations = netatmo.getStationNames();
+            var buttons = [];
+            for (i = 0; i < stations.length; i++) {
+                buttons[i] =
+                    builder.CardAction.imBack(session, "Indoor Temp for " + stations[i], stations[i]);
+            }
+
+
             var card = new builder.HeroCard(session)
                 .title("Tempbot")
                 .text("$.Intro.Welcome")
                 .images([
                  builder.CardImage.create(session, process.env.BOT_DOMAIN_URL + "/images/tempbot.png")
-            ])
-                .buttons([
-                // session, Action, Data-pushed, Title
-                builder.CardAction.imBack(session, "OutdoorTemp for Winterthur", "Winterthur"),
-                    builder.CardAction.imBack(session, "OutdoorTemp for Klosters", "Klosters")
-            ]);
+            ]).buttons(buttons);
+
             var msg = new builder.Message(session).addAttachment(card);
             session.send(msg).endDialog();
 
@@ -156,16 +162,15 @@ bot.dialog('/Intro', [
 
 
 //Outodoor Temp Dialog
-bot.dialog('/OutdoorTemp', [
+bot.dialog('/IndoorTemp', [
   function (session, args, next) {
-        //   session.send("Outdoor Temperature for %s", args);
         var utterance = args.intent.matched.input;
-        var location = utterance.substring(16); //x = length of "OutdoorTemp for "
-        var temp = netatmo.getOutdoorTemp(location);
-        session.send("Outdoor Temperature for %s is %s", location, temp);
+        var location = utterance.substring(16); //x = length of "Indoor Temp for "
+        var temp = netatmo.getIndoorTemp(location);
+        session.send("Indoor Temperature for %s is %s", location, temp);
   }
 ]).triggerAction({
-    matches: /OutdoorTemp/i
+    matches: /Indoor Temp/i
 });
 
 
