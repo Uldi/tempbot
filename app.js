@@ -201,7 +201,10 @@ bot.dialog('/Luis', [
         var netatmoAnswer = 'datatype = ' + datatype + ', ort = ' + ort;
         if (datatype && ort) {
             session.send(netatmoAnswer);
-            session.beginDialog("/Luis");
+            session.endDialog();
+      //      session.beginDialog("/Luis"); //damit würde er direkt wieder luis starten
+            logCallstack(session.sessionState.callstack);
+
         } else {
             session.endDialogWithResult({
                 resumed: builder.ResumeReason.notCompleted
@@ -216,7 +219,6 @@ bot.dialog('/Luis', [
         matches: /(stop|bye|goodbye|abbruch|tschüss)/i
     })
 ;
-
 
 
 //Outodoor Temp Dialog
@@ -240,3 +242,12 @@ bot.dialog('/Help', [
 ]).cancelAction('/HelpCancel', "OK abgebrochen - tippe mit 'start' wenn Du was von mir willst", {
     matches: /(stop|bye|goodbye|abbruch|tschüss)/i
 });
+
+
+//helper methods
+function logCallstack(callstack) {
+    console.log("Callstack: ");
+    for (i = 0; i < callstack.length; i++) {
+        console.log(callstack[i].id);
+        }
+}
