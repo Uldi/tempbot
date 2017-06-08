@@ -101,6 +101,16 @@ server.get('/', function (req, res, next) {
 });
 
 //=========================================================
+// LUIS
+//=========================================================
+
+// Add global LUIS recognizer to bot
+var model = process.env.MICROSOFT_LUIS_MODEL;
+var recognizer = new builder.LuisRecognizer(model);
+//bot.recognizer(recognizer);
+
+
+//=========================================================
 // default handler
 //=========================================================
 
@@ -112,16 +122,25 @@ var helpRecognizer = new builder.RegExpRecognizer("Help", {
     en_us: /^(Help|help)/i,
     de: /^(Hilfe|hilfe)/i
 });
+var luisRecognizer = new builder.RegExpRecognizer("Luis", {
+    en_us: /^(Luis|luis)/i,
+    de: /^(Luis|luis)/i
+});
+var getmeasureRecognizer = new builder.RegExpRecognizer("GetMeasure", {
+    en_us: /^(GetMeasure)/i,
+    de: /^(GetMeasure)/i
+});
 var intents = new builder.IntentDialog({
-    recognizers: [introRecognizer, helpRecognizer]
+    recognizers: [introRecognizer, helpRecognizer, luisRecognizer]
 });
 
 
 bot.dialog('/',
     intents
-    .matches('Help', '/Help')
-    .matches('Testen', '/Testen')
-    .matches('Intro', '/Intro')
+        .matches('Help', '/Help')
+        .matches('Testen', '/Testen')
+        .matches('Intro', '/Intro')
+        .matches('Luis', '/Luis')
 );
 
 intents.onDefault(
@@ -131,44 +150,83 @@ intents.onDefault(
 
 //Intro/Start Dialog
 bot.dialog('/Intro', [
-  function (session, args, next) {
-            session.preferredLocale("de");
+    function (session, args, next) {
+        session.preferredLocale("de");
 
-            //create buttons
-            var stations = netatmo.getStationNames();
-            var buttons = [];
-            for (i = 0; i < stations.length; i++) {
-                buttons[i] =
-                    builder.CardAction.imBack(session, "Indoor Temp for " + stations[i], stations[i]);
-            }
+        //create buttons
+        var stations = netatmo.getStationNames();
+        var buttons = [];
+        for (i = 0; i < stations.length; i++) {
+            buttons[i] =
+                builder.CardAction.imBack(session, "Indoor Temp for " + stations[i], stations[i]);
+        }
 
 
-            var card = new builder.HeroCard(session)
-                .title("Tempbot")
-                .text("$.Intro.Welcome")
-                .images([
-                 builder.CardImage.create(session, process.env.BOT_DOMAIN_URL + "/images/tempbot.png")
+        var card = new builder.HeroCard(session)
+            .title("Tempbot")
+            .text("$.Intro.Welcome")
+            .images([
+                builder.CardImage.create(session, process.env.BOT_DOMAIN_URL + "/images/tempbot.png")
             ]).buttons(buttons);
 
-            var msg = new builder.Message(session).addAttachment(card);
-            session.send(msg).endDialog();
+        var msg = new builder.Message(session).addAttachment(card);
+        session.send(msg).endDialog();
 
-  }
+    }
 ])
     .cancelAction('/IntroCancel', "OK abgebrochen - tippe mit 'start' wenn Du was von mir willst", {
         matches: /(stop|bye|goodbye|abbruch|tschüss)/i
     });
 
+//Luis Dialog
+bot.dialog('/Luis', [
+    function (session) {
+        session.preferredLocale("de");
+        builder.Prompts.text(session, "Was möchtest du wissen? (gib <value> in <ort>)");
+    },
+        function (session, args) {
+      builder.LuisRecognizer.recognize(args.response, model, function (err, intents, entities) {
+        console.log("Luis: ");
+        console.log(intents);
+        console.log(entities);
+
+        var datatypeEntity = entities[0];
+        var ortEntity = entities[1];
+        var datatype = datatypeEntity.entity;
+        var ort = ortEntity.entity;
+        console.log('datatype = %s , ort = %s', datatype, ort);
+
+
+        // call netatmo
+        var netatmoAnswer = 'datatype = ' + datatype + ', ort = ' + ort;
+        if (datatype && ort) {
+            session.send(netatmoAnswer);
+            session.beginDialog("/Luis");
+        } else {
+            session.endDialogWithResult({
+                resumed: builder.ResumeReason.notCompleted
+            });
+        }
+
+    }); 
+
+    }
+])
+    .cancelAction('/LuisCancel', "OK abgebrochen - tippe mit 'luis' wenn Du was von mir willst", {
+        matches: /(stop|bye|goodbye|abbruch|tschüss)/i
+    })
+;
+
 
 
 //Outodoor Temp Dialog
 bot.dialog('/IndoorTemp', [
-  function (session, args, next) {
+    function (session, args, next) {
         var utterance = args.intent.matched.input;
         var location = utterance.substring(16); //x = length of "Indoor Temp for "
         var temp = netatmo.getIndoorTemp(location);
         session.send("Indoor Temperature for %s is %s", location, temp);
-  }
+    }
 ]).triggerAction({
     matches: /Indoor Temp/i
 });
@@ -176,9 +234,9 @@ bot.dialog('/IndoorTemp', [
 
 //Hilfe Dialog
 bot.dialog('/Help', [
-  function (session, args, next) {
+    function (session, args, next) {
         session.send("Help - Help");
-  }
+    }
 ]).cancelAction('/HelpCancel', "OK abgebrochen - tippe mit 'start' wenn Du was von mir willst", {
     matches: /(stop|bye|goodbye|abbruch|tschüss)/i
 });
